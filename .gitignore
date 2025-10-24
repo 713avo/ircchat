@@ -1,0 +1,43 @@
+# Archivos compilados
+*.o
+*.so
+*.a
+*.out
+
+# Binario del programa
+bin/ircchat
+bin/*.o
+
+# Archivos de configuración del usuario
+.ircchat.rc
+
+# Logs del cliente IRC
+*.log
+.irclogs/
+
+# Archivos de respaldo y temporales
+*~
+*.swp
+*.swo
+*.bak
+.*.swp
+.DS_Store
+
+# Directorios de IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Archivos de depuración
+*.dSYM/
+*.su
+vgcore.*
+core
+core.*
+
+# Archivos de compilación
+*.d
+*.dep
+
+# Claude Code
+.claude/

@@ -1,0 +1,205 @@
+# Archivo de configuración para IRC Chat Client
+# Ubicación: ~/.ircchat.rc
+# Las líneas que empiezan con # son comentarios
+
+# ==================== CONEXIÓN IRC ====================
+
+# Nick por defecto al conectar
+# Ejemplo: NICK=miusuario
+#NICK=
+
+# Servidor IRC por defecto (puede incluir puerto con :)
+# Ejemplos:
+#   SERVER=irc.libera.chat
+#   SERVER=irc.libera.chat:6667
+#   SERVER=irc.oftc.net:6697
+#SERVER=
+
+# ==================== BUFFER Y VISUALIZACIÓN ====================
+
+# Activar/desactivar buffer de scroll en mensajes
+# Permite desplazarse hacia arriba para ver mensajes antiguos
+# Valores: on, off, yes, no, true, false, 1, 0
+# Por defecto: on
+BUFFER=on
+
+# Modo silencioso: oculta mensajes de protocolo IRC (JOIN/QUIT/PART/PRIVMSG)
+# de la ventana de sistema, reduciendo el ruido
+# Valores: on, off, yes, no, true, false, 1, 0
+# Por defecto: off
+SILENT=off
+
+# Timestamps: mostrar marca de tiempo al inicio de cada mensaje
+# en canales y mensajes privados
+# Formato: HH:MM:SS> <usuario> mensaje (según TTFORMAT)
+# Valores: on, off, yes, no, true, false, 1, 0
+# Por defecto: off
+TIMESTAMP=off
+
+# Formato de timestamp para visualización en ventanas
+# Solo afecta a la visualización, los logs siempre usan HH:MM:SS
+# Valores: HH:MM:SS (largo) o HH:MM (corto)
+# Por defecto: HH:MM:SS
+TTFORMAT=HH:MM:SS
+
+# ==================== LOGGING ====================
+
+# Logging: guardar automáticamente conversaciones en archivos
+# Los archivos se crean en ~/.irclogs/ con formato:
+#   canal_NOMBRE_DD-MM-YY_HH:MM.txt
+#   privado_NOMBRE_DD-MM-YY_HH:MM.txt
+# Características del logging:
+#   - Los logs siempre incluyen timestamps en formato [HH:MM:SS]
+#   - Se detecta y marca automáticamente el cambio de día
+#   - Los códigos de color ANSI se eliminan antes de guardar
+#   - Si el archivo existe, se añade al final (modo append)
+# Valores: on, off, yes, no, true, false, 1, 0
+# Por defecto: off
+LOG=off
+
+# ==================== AUTO-JOIN ====================
+
+# Canales a los que unirse automáticamente después de conectar
+# Múltiples canales separados por comas
+# El símbolo # es opcional, se añadirá automáticamente si falta
+# Ejemplos:
+#   AUTOJOIN=#linux,#python,#programming
+#   AUTOJOIN=music,chat,gaming
+#AUTOJOIN=
+
+# ==================== SISTEMA NOTIFY ====================
+
+# Nicks a vigilar para notificaciones
+# El cliente verificará cada 60 segundos si estos nicks están online
+# Cuando uno se conecta, aparecerá un indicador "C" verde parpadeante
+# Múltiples nicks separados por comas
+# Ejemplos:
+#   NOTIFY=alice,bob,charlie
+#   NOTIFY=amigo1,amigo2,amigo3
+#NOTIFY=
+
+# ==================== ATAJOS DE TECLADO ====================
+
+# === Navegación de ventanas ===
+# Alt+0-9          Cambiar a ventana 0-9 directamente
+# Alt+→            Siguiente ventana (navegación cíclica)
+# Alt+←            Ventana anterior (navegación cíclica)
+# Alt+.            Limpiar pantalla de la ventana actual (/clear)
+
+# === Scroll de buffer de mensajes ===
+# Ctrl+↑           Desplazar hacia arriba en el buffer
+# Ctrl+↓           Desplazar hacia abajo en el buffer
+# Ctrl+B           Ir al inicio del buffer (Begin)
+# Ctrl+E           Ir al final del buffer (End)
+
+# === Scroll de lista de usuarios (solo en canales) ===
+# Ctrl+Shift+↑     Desplazar lista de usuarios hacia arriba
+# Ctrl+Shift+↓     Desplazar lista de usuarios hacia abajo
+# Ctrl+Shift+←     Desplazar nicks largos hacia la izquierda
+# Ctrl+Shift+→     Desplazar nicks largos hacia la derecha
+
+# === Entrada de texto ===
+# ↑/↓              Navegar por el historial de comandos
+# TAB              Autocompletar nicks en canales
+#                  (presiona múltiples veces para rotar opciones)
+# Ctrl+L           Redibujar la interfaz completa
+# Ctrl+C           Salir del programa
+
+# ==================== COMANDOS DISPONIBLES ====================
+
+# === Conexión y sesión ===
+# /help                        Mostrar lista de comandos disponibles
+# /exit o /quit                Salir del programa
+# /connect [servidor] [puerto] Conectar a servidor IRC
+# /nick <nickname>             Cambiar nickname actual
+
+# === Canales ===
+# /join <#canal>               Unirse a un canal
+# /part                        Salir del canal actual
+
+# === Mensajes ===
+# /msg <nick> <mensaje>        Enviar mensaje privado a un usuario
+# (escribir directamente)      Enviar mensaje al canal/privado activo
+
+# === Gestión de ventanas ===
+# /wl                          Listar todas las ventanas abiertas
+# /wc [número]                 Cerrar ventana (actual o número específico)
+# /w1, /w2, /w3, etc.          Cambiar a ventana específica
+# /clear                       Limpiar pantalla de la ventana activa
+
+# === Configuración en tiempo real ===
+# /buffer on|off               Activar/desactivar buffer de scroll
+# /silent on|off               Activar/desactivar modo silencioso
+# /log on|off                  Activar/desactivar logging
+# /timestamp on|off            Activar/desactivar timestamps en mensajes
+# /ttformat HH:MM:SS           Cambiar a formato largo de timestamp
+# /ttformat HH:MM              Cambiar a formato corto de timestamp
+
+# === Notificaciones ===
+# /ok                          Borrar todas las notificaciones activas
+#                              (limpia indicadores C, M, *, +)
+
+# ==================== INDICADORES DE NOTIFICACIÓN ====================
+
+# Los indicadores aparecen al final de la línea de prompt:
+#
+# C (verde, parpadeante)       Nick de NOTIFY se ha conectado
+# M (magenta, parpadeante)     Te han mencionado en un canal
+# * (rojo, parpadeante)        Nueva ventana de mensaje privado
+# + (amarillo, parpadeante)    Mensajes sin leer en otras ventanas
+#
+# Prioridad de visualización: C > M > * > +
+# (solo se muestra el de mayor prioridad)
+#
+# Comando /ok limpia todos los indicadores simultáneamente
+
+# ==================== COLORES mIRC ====================
+
+# El cliente soporta códigos de formato mIRC estándar en mensajes:
+#
+# ^C + número (0-15)           Color de texto
+# ^C + número,número           Color de texto y fondo
+# ^B                           Texto en negrita
+# ^U o ^_                      Texto subrayado
+# ^O o ^R                      Reset (volver a formato normal)
+# ^V                           Video reverso (invertir colores)
+#
+# Paleta de colores mIRC:
+#  0=Blanco      4=Rojo        8=Amarillo     12=Azul claro
+#  1=Negro       5=Marrón      9=Verde claro  13=Rosa
+#  2=Azul        6=Magenta    10=Cyan         14=Gris
+#  3=Verde       7=Naranja    11=Cyan claro   15=Gris claro
+
+# ==================== NOTAS ADICIONALES ====================
+
+# - UTF-8: Soporte completo para caracteres internacionales
+# - Word wrap: Los mensajes largos se ajustan automáticamente
+# - Prefijos de modo: @ (op), + (voice), % (half-op), ~ (owner), & (admin)
+# - Archivos de log: Se crean automáticamente en ~/.irclogs/
+# - Autocompletado: Case-insensitive, añade ":" automáticamente al inicio
+# - Cambio de día en logs: Se detecta y marca automáticamente
+
+# ==================== EJEMPLOS DE CONFIGURACIÓN ====================
+
+# Configuración básica:
+#NICK=miusuario
+#SERVER=irc.libera.chat:6667
+#AUTOJOIN=#linux,#python
+#BUFFER=on
+
+# Configuración avanzada con logging y timestamps:
+#NICK=miusuario
+#SERVER=irc.libera.chat:6667
+#AUTOJOIN=#linux,#python,#programming
+#NOTIFY=alice,bob
+#LOG=on
+#TIMESTAMP=on
+#TTFORMAT=HH:MM
+#SILENT=off
+#BUFFER=on
+
+# Configuración minimalista:
+#NICK=miusuario
+#SERVER=irc.libera.chat
+
+# ==================== FIN DE LA CONFIGURACIÓN ====================
