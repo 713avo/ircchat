@@ -172,12 +172,7 @@ void cmd_join(CommandContext *ctx, const char *args) {
 
         irc_join(ctx->irc, channel);
 
-        /* Solicitar lista de usuarios del canal */
-        char names_cmd[MAX_MSG_LEN];
-        snprintf(names_cmd, sizeof(names_cmd), "NAMES %s", channel);
-        irc_send(ctx->irc, names_cmd);
-
-        debug_log(ctx->wm, *ctx->debug_window_id, "JOIN comando: solicitando NAMES para %s", channel);
+        /* NAMES se solicitará automáticamente cuando el servidor confirme el JOIN */
 
         char msg[MAX_MSG_LEN];
         snprintf(msg, sizeof(msg), ANSI_GREEN "Uniéndose a %s (ventana %d)" ANSI_RESET, channel, win_id);

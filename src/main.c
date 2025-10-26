@@ -93,12 +93,7 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                         snprintf(join_cmd, sizeof(join_cmd), "JOIN %s", channel);
                         irc_send(irc, join_cmd);
 
-                        /* Solicitar lista de usuarios del canal */
-                        char names_cmd[MAX_MSG_LEN];
-                        snprintf(names_cmd, sizeof(names_cmd), "NAMES %s", channel);
-                        irc_send(irc, names_cmd);
-
-                        debug_log(wm, debug_window_id, "AUTOJOIN: solicitando NAMES para %s", channel);
+                        /* NAMES se solicitará cuando el servidor confirme el JOIN */
 
                         char msg[MAX_MSG_LEN];
                         snprintf(msg, sizeof(msg), ANSI_CYAN "* Auto-join: %s (ventana %d)" ANSI_RESET,
@@ -251,26 +246,29 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                         debug_log(wm, debug_window_id, "JOIN: found_win=%p, es_mio=%d",
                                  (void*)found_win, strcasecmp(sender, irc->nick) == 0);
 
-                        /* Si no existe ventana y el JOIN es nuestro, crearla */
-                        if (!found_win && strcasecmp(sender, irc->nick) == 0) {
-                            found_win_id = wm_create_window(wm, WIN_CHANNEL, channel);
-                            found_win = wm_get_window(wm, found_win_id);
+                        /* Si el JOIN es nuestro (estamos confirmados en el canal) */
+                        if (strcasecmp(sender, irc->nick) == 0) {
+                            /* Si no existe ventana, crearla */
+                            if (!found_win) {
+                                found_win_id = wm_create_window(wm, WIN_CHANNEL, channel);
+                                found_win = wm_get_window(wm, found_win_id);
 
-                            /* Aplicar configuración y abrir log si está habilitado */
-                            if (config && found_win) {
-                                if (found_win->buffer) {
-                                    found_win->buffer->enabled = config->buffer_enabled;
-                                }
-                                if (config->log_enabled) {
-                                    window_open_log(found_win);
+                                /* Aplicar configuración y abrir log si está habilitado */
+                                if (config && found_win) {
+                                    if (found_win->buffer) {
+                                        found_win->buffer->enabled = config->buffer_enabled;
+                                    }
+                                    if (config->log_enabled) {
+                                        window_open_log(found_win);
+                                    }
                                 }
                             }
 
-                            /* Solicitar lista de usuarios del canal */
+                            /* Solicitar lista de usuarios AHORA que estamos confirmados en el canal */
                             char names_cmd[MAX_MSG_LEN];
                             snprintf(names_cmd, sizeof(names_cmd), "NAMES %s", channel);
                             irc_send(irc, names_cmd);
-                            debug_log(wm, debug_window_id, "JOIN: solicitando NAMES para %s", channel);
+                            debug_log(wm, debug_window_id, "JOIN confirmado: solicitando NAMES para %s", channel);
                         }
 
                         /* Añadir usuario a la ventana */
