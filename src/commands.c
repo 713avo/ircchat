@@ -156,10 +156,15 @@ void cmd_join(CommandContext *ctx, const char *args) {
     /* Crear ventana para el canal */
     int win_id = wm_create_window(ctx->wm, WIN_CHANNEL, channel);
     if (win_id != -1) {
-        /* Abrir log si está habilitado */
+        /* Aplicar configuración y abrir log si está habilitado */
         Window *win = wm_get_window(ctx->wm, win_id);
-        if (ctx->config->log_enabled && win) {
-            window_open_log(win);
+        if (win) {
+            if (win->buffer) {
+                win->buffer->enabled = ctx->config->buffer_enabled;
+            }
+            if (ctx->config->log_enabled) {
+                window_open_log(win);
+            }
         }
 
         irc_join(ctx->irc, channel);
@@ -247,9 +252,14 @@ void cmd_msg(CommandContext *ctx, const char *args) {
         int win_id = wm_create_window(ctx->wm, WIN_PRIVATE, target);
         priv_win = wm_get_window(ctx->wm, win_id);
 
-        /* Abrir log si está habilitado */
-        if (ctx->config->log_enabled && priv_win) {
-            window_open_log(priv_win);
+        /* Aplicar configuración y abrir log si está habilitado */
+        if (priv_win) {
+            if (priv_win->buffer) {
+                priv_win->buffer->enabled = ctx->config->buffer_enabled;
+            }
+            if (ctx->config->log_enabled) {
+                window_open_log(priv_win);
+            }
         }
     }
 
@@ -612,6 +622,11 @@ void cmd_list(CommandContext *ctx, const char *args) {
             return;
         }
         list_win = wm_get_window(ctx->wm, list_win_id);
+
+        /* Aplicar configuración del buffer */
+        if (list_win && list_win->buffer) {
+            list_win->buffer->enabled = ctx->config->buffer_enabled;
+        }
     }
 
     /* Limpiar lista anterior */

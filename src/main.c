@@ -77,10 +77,15 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                     /* Crear ventana para el canal */
                     int win_id = wm_create_window(wm, WIN_CHANNEL, channel);
                     if (win_id != -1) {
-                        /* Abrir log si está habilitado */
+                        /* Aplicar configuración y abrir log si está habilitado */
                         Window *win = wm_get_window(wm, win_id);
-                        if (config->log_enabled && win) {
-                            window_open_log(win);
+                        if (win) {
+                            if (win->buffer) {
+                                win->buffer->enabled = config->buffer_enabled;
+                            }
+                            if (config->log_enabled) {
+                                window_open_log(win);
+                            }
                         }
 
                         /* Enviar comando JOIN al servidor */
@@ -155,9 +160,14 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                                     int win_id = wm_create_window(wm, WIN_PRIVATE, sender);
                                     dest_win = wm_get_window(wm, win_id);
 
-                                    /* Abrir log si está habilitado */
-                                    if (config && config->log_enabled && dest_win) {
-                                        window_open_log(dest_win);
+                                    /* Aplicar configuración y abrir log si está habilitado */
+                                    if (config && dest_win) {
+                                        if (dest_win->buffer) {
+                                            dest_win->buffer->enabled = config->buffer_enabled;
+                                        }
+                                        if (config->log_enabled) {
+                                            window_open_log(dest_win);
+                                        }
                                     }
                                 }
                             }
@@ -219,9 +229,14 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                             found_win_id = wm_create_window(wm, WIN_CHANNEL, channel);
                             found_win = wm_get_window(wm, found_win_id);
 
-                            /* Abrir log si está habilitado */
-                            if (config && config->log_enabled && found_win) {
-                                window_open_log(found_win);
+                            /* Aplicar configuración y abrir log si está habilitado */
+                            if (config && found_win) {
+                                if (found_win->buffer) {
+                                    found_win->buffer->enabled = config->buffer_enabled;
+                                }
+                                if (config->log_enabled) {
+                                    window_open_log(found_win);
+                                }
                             }
                         }
 
@@ -560,6 +575,14 @@ int main(void) {
     bool silent_mode = config->silent_mode;
     bool notify_alert = false;
     bool mention_alert = false;
+
+    /* Aplicar configuración del buffer a todas las ventanas existentes */
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+        Window *win = wm->windows[i];
+        if (win && win->buffer) {
+            win->buffer->enabled = config->buffer_enabled;
+        }
+    }
 
     /* Sistema de notify - tracking de nicks */
     bool notify_status[MAX_NOTIFY_NICKS] = {false};  /* Estado anterior: false=offline, true=online */
