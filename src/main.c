@@ -128,6 +128,20 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                         if (msg_text) {
                             msg_text += 2; /* Saltar " :" */
 
+                            /* Crear copia limpia del mensaje y eliminar \r\n */
+                            char clean_msg[MAX_MSG_LEN];
+                            strncpy(clean_msg, msg_text, sizeof(clean_msg) - 1);
+                            clean_msg[sizeof(clean_msg) - 1] = '\0';
+
+                            /* Eliminar \r y \n del final */
+                            char *newline = strchr(clean_msg, '\r');
+                            if (newline) *newline = '\0';
+                            newline = strchr(clean_msg, '\n');
+                            if (newline) *newline = '\0';
+
+                            /* Actualizar msg_text para apuntar a la versión limpia */
+                            msg_text = clean_msg;
+
                             /* Buscar ventana apropiada */
                             Window *dest_win = NULL;
 
@@ -523,6 +537,12 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                         topic_ptr += 2;  /* Saltar " :" */
                         strncpy(topic, topic_ptr, sizeof(topic) - 1);
                         topic[sizeof(topic) - 1] = '\0';
+
+                        /* Limpiar \r\n del topic */
+                        char *newline = strchr(topic, '\r');
+                        if (newline) *newline = '\0';
+                        newline = strchr(topic, '\n');
+                        if (newline) *newline = '\0';
                     }
 
                     /* Buscar ventana del canal */
