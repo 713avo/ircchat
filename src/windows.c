@@ -77,6 +77,8 @@ int wm_create_window(WindowManager *wm, WindowType type, const char *title) {
     win->list_ordered = false;
     win->list_filter[0] = '\0';
     win->list_limit = 0;
+    win->list_min_users = 0;
+    win->list_max_users = 0;
 
     wm->windows[id] = win;
     wm->window_count++;
@@ -738,6 +740,39 @@ void window_finalize_channel_list(Window *win) {
 
     win->list_receiving = false;
 
+    /* Aplicar filtro por rango de usuarios si existe */
+    if (win->list_min_users > 0 || win->list_max_users > 0) {
+        ChannelListItem **ptr = &win->channel_list;
+        int count = 0;
+
+        while (*ptr) {
+            bool keep = true;
+
+            /* Verificar mínimo de usuarios */
+            if (win->list_min_users > 0 && (*ptr)->user_count < win->list_min_users) {
+                keep = false;
+            }
+
+            /* Verificar máximo de usuarios */
+            if (win->list_max_users > 0 && (*ptr)->user_count > win->list_max_users) {
+                keep = false;
+            }
+
+            if (!keep) {
+                /* No cumple el rango, eliminar */
+                ChannelListItem *to_remove = *ptr;
+                *ptr = (*ptr)->next;
+                free(to_remove);
+            } else {
+                /* Cumple el rango, mantener */
+                ptr = &((*ptr)->next);
+                count++;
+            }
+        }
+
+        win->channel_count = count;
+    }
+
     /* Aplicar filtro si existe */
     if (win->list_filter[0] != '\0') {
         ChannelListItem **ptr = &win->channel_list;
@@ -817,6 +852,17 @@ void window_finalize_channel_list(Window *win) {
 
     if (win->list_limit > 0) {
         snprintf(msg, sizeof(msg), ANSI_YELLOW "Límite aplicado: %d resultados" ANSI_RESET, win->list_limit);
+        buffer_add_message(win->buffer, msg);
+    }
+
+    if (win->list_min_users > 0 || win->list_max_users > 0) {
+        if (win->list_min_users > 0 && win->list_max_users > 0) {
+            snprintf(msg, sizeof(msg), ANSI_YELLOW "Rango de usuarios: %d-%d" ANSI_RESET, win->list_min_users, win->list_max_users);
+        } else if (win->list_min_users > 0) {
+            snprintf(msg, sizeof(msg), ANSI_YELLOW "Usuarios mínimos: %d" ANSI_RESET, win->list_min_users);
+        } else {
+            snprintf(msg, sizeof(msg), ANSI_YELLOW "Usuarios máximos: %d" ANSI_RESET, win->list_max_users);
+        }
         buffer_add_message(win->buffer, msg);
     }
 

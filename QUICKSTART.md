@@ -1,5 +1,7 @@
 # Inicio Rápido - Cliente IRC
 
+> **Versión 1.1.0** - Ahora con word wrap que preserva colores, comando `/wii` (WHOIS+WHOWAS), y filtrado avanzado por usuarios en `/list`
+
 ## Compilar
 
 ```bash
@@ -36,11 +38,12 @@ Servidores IRC públicos populares:
 Puedes listar los canales del servidor antes de unirte:
 
 ```
-/list
-/list order                    # Ordenar por número de usuarios
-/list *linux*                  # Buscar canales con "linux" en el nombre
-/list num 10 order            # Top 10 canales más poblados
-/list num 20 *python* order   # Top 20 canales de python, ordenados
+/list                                         # Todos los canales
+/list order                                   # Ordenar por número de usuarios
+/list *linux*                                 # Buscar canales con "linux" en el nombre
+/list num 10 order                            # Top 10 canales más poblados
+/list users 10-40                             # Solo canales con 10-40 usuarios
+/list num 10 users 10-40 order *linux*        # Top 10 canales de 10-40 usuarios con "linux", ordenados
 ```
 
 ### 4. Unirse a un canal
@@ -114,14 +117,17 @@ También puedes cerrar una ventana específica:
 ## Comandos Esenciales
 
 ```
-/help                      # Ver todos los comandos
-/list [num <n>] [order]   # Listar canales del servidor
-/wl                        # Listar ventanas
-/w<n>                      # Cambiar a ventana n
-/wc [n]                    # Cerrar ventana n (sin número cierra la actual)
-/clear                     # Limpiar pantalla
-/buffer off                # Desactivar buffer (ahorrar memoria)
-/buffer on                 # Activar buffer
+/help                                           # Ver todos los comandos
+/list [num <n>] [users <n>|<min>-<max>] [order] [search <patrón>]
+                                                # Listar canales del servidor
+/whois <nick>                                   # Info usuario (solo WHOIS)
+/wii <nick>                                     # Info completa (WHOIS + WHOWAS)
+/wl                                             # Listar ventanas
+/w<n>                                           # Cambiar a ventana n
+/wc [n]                                         # Cerrar ventana n (sin número cierra la actual)
+/clear                                          # Limpiar pantalla
+/buffer off                                     # Desactivar buffer (ahorrar memoria)
+/buffer on                                      # Activar buffer
 ```
 
 ## Ejemplo de Sesión Completa
@@ -147,6 +153,14 @@ También puedes cerrar una ventana específica:
 Hola! Alguien sabe cómo usar decoradores?
 
 # Ver quién está en el canal (mira la columna derecha)
+
+# Ver información de un usuario
+/whois AmigoPython
+# Muestra: hostname, canales, tiempo idle, etc.
+
+# Ver información completa (incluye historial)
+/wii AmigoPython
+# Ejecuta WHOIS y WHOWAS
 
 # Enviar mensaje privado a alguien
 /msg AmigoPython Gracias por la ayuda!

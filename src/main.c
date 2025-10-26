@@ -69,7 +69,7 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
             irc_process_message(irc, line, wm);
 
             /* Detectar mensaje 001 (RPL_WELCOME) para autojoin */
-            if (strstr(line, " 001 ") || strstr(line, "Welcome")) {
+            if (strstr(line, " 001 ") != NULL && line[0] == ':') {
                 /* Realizar autojoin si hay canales configurados */
                 for (int i = 0; i < config->autojoin_count; i++) {
                     const char *channel = config->autojoin_channels[i];

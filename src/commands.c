@@ -19,8 +19,10 @@ static Command command_table[] = {
     {"log", cmd_log, "Activar/desactivar logging: /log on|off"},
     {"timestamp", cmd_timestamp, "Activar/desactivar timestamps: /timestamp on|off"},
     {"ttformat", cmd_ttformat, "Formato de timestamp: /ttformat HH:MM:SS o /ttformat HH:MM"},
-    {"list", cmd_list, "Listar canales: /list [num <n>] [order] [search <patrón>]"},
+    {"list", cmd_list, "Listar canales: /list [num <n>] [users <n>|<min>-<max>] [order] [search <patrón>]"},
     {"raw", cmd_raw, "Enviar comando IRC raw: /raw <comando IRC>"},
+    {"whois", cmd_whois, "Información de usuario: /whois <nick>"},
+    {"wii", cmd_wii, "Información de usuario: /wii <nick> (whois + whowas)"},
     {NULL, NULL, NULL}
 };
 
@@ -618,11 +620,15 @@ void cmd_list(CommandContext *ctx, const char *args) {
     list_win->list_ordered = false;
     list_win->list_filter[0] = '\0';
     list_win->list_limit = 0;
+    list_win->list_min_users = 0;
+    list_win->list_max_users = 0;
 
     /* Parsear argumentos */
     bool order = false;
     char search_pattern[256] = "";
     int limit = 0;
+    int min_users = 0;
+    int max_users = 0;
 
     if (args && args[0] != '\0') {
         char args_copy[MAX_MSG_LEN];
@@ -641,11 +647,41 @@ void cmd_list(CommandContext *ctx, const char *args) {
                     search_pattern[sizeof(search_pattern) - 1] = '\0';
                 }
             } else if (strcasecmp(token, "num") == 0) {
-                /* Siguiente token es el límite */
+                /* Siguiente token es el límite de resultados */
                 token = strtok(NULL, " ");
                 if (token) {
                     limit = atoi(token);
                     if (limit < 0) limit = 0;
+                }
+            } else if (strcasecmp(token, "users") == 0) {
+                /* Siguiente token es el rango de usuarios o número específico */
+                token = strtok(NULL, " ");
+                if (token) {
+                    /* Verificar si es un rango (contiene '-') */
+                    char *dash = strchr(token, '-');
+                    if (dash) {
+                        /* Es un rango: min-max */
+                        *dash = '\0';  /* Separar las dos partes */
+                        min_users = atoi(token);
+                        max_users = atoi(dash + 1);
+
+                        /* Validar rango */
+                        if (min_users < 0) min_users = 0;
+                        if (max_users < 0) max_users = 0;
+                        if (max_users > 0 && min_users > max_users) {
+                            /* Intercambiar si están al revés */
+                            int temp = min_users;
+                            min_users = max_users;
+                            max_users = temp;
+                        }
+                    } else {
+                        /* Es un número específico de usuarios */
+                        int users = atoi(token);
+                        if (users > 0) {
+                            min_users = users;
+                            max_users = users;
+                        }
+                    }
                 }
             } else if (token[0] == '*' || token[0] == '#' || token[0] == '?') {
                 /* Token que empieza con wildcard o # es un patrón de búsqueda */
@@ -669,6 +705,11 @@ void cmd_list(CommandContext *ctx, const char *args) {
 
     if (limit > 0) {
         list_win->list_limit = limit;
+    }
+
+    if (min_users > 0 || max_users > 0) {
+        list_win->list_min_users = min_users;
+        list_win->list_max_users = max_users;
     }
 
     /* Enviar comando LIST al servidor */
@@ -696,6 +737,17 @@ void cmd_list(CommandContext *ctx, const char *args) {
         wm_add_message(ctx->wm, list_win_id, msg);
     }
 
+    if (min_users > 0 || max_users > 0) {
+        if (min_users > 0 && max_users > 0) {
+            snprintf(msg, sizeof(msg), ANSI_YELLOW "Rango de usuarios: %d-%d" ANSI_RESET, min_users, max_users);
+        } else if (min_users > 0) {
+            snprintf(msg, sizeof(msg), ANSI_YELLOW "Usuarios mínimos: %d" ANSI_RESET, min_users);
+        } else {
+            snprintf(msg, sizeof(msg), ANSI_YELLOW "Usuarios máximos: %d" ANSI_RESET, max_users);
+        }
+        wm_add_message(ctx->wm, list_win_id, msg);
+    }
+
     wm_add_message(ctx->wm, list_win_id, ANSI_GRAY "Recibiendo datos del servidor..." ANSI_RESET);
 }
 
@@ -719,5 +771,64 @@ void cmd_raw(CommandContext *ctx, const char *args) {
     /* Mostrar comando enviado */
     char display[MAX_MSG_LEN];
     snprintf(display, sizeof(display), ANSI_GRAY ">> %s" ANSI_RESET, args);
+    wm_add_message(ctx->wm, 0, display);
+}
+
+/* Comando: whois */
+void cmd_whois(CommandContext *ctx, const char *args) {
+    if (!args || args[0] == '\0') {
+        wm_add_message(ctx->wm, 0, ANSI_RED "Error: Uso /whois <nick>" ANSI_RESET);
+        wm_add_message(ctx->wm, 0, ANSI_GRAY "Ejemplo: /whois alice" ANSI_RESET);
+        return;
+    }
+
+    if (!ctx->irc->connected) {
+        wm_add_message(ctx->wm, 0, ANSI_RED "Error: No estás conectado a un servidor" ANSI_RESET);
+        return;
+    }
+
+    /* Construir comando WHOIS */
+    char cmd[MAX_MSG_LEN];
+    snprintf(cmd, sizeof(cmd), "WHOIS %s", args);
+
+    /* Enviar comando al servidor */
+    irc_send(ctx->irc, cmd);
+
+    /* Mostrar comando enviado */
+    char display[MAX_MSG_LEN];
+    snprintf(display, sizeof(display), ANSI_GRAY ">> %s" ANSI_RESET, cmd);
+    wm_add_message(ctx->wm, 0, display);
+}
+
+/* Comando: wii (whois + whowas) */
+void cmd_wii(CommandContext *ctx, const char *args) {
+    if (!args || args[0] == '\0') {
+        wm_add_message(ctx->wm, 0, ANSI_RED "Error: Uso /wii <nick>" ANSI_RESET);
+        wm_add_message(ctx->wm, 0, ANSI_GRAY "Ejemplo: /wii alice" ANSI_RESET);
+        wm_add_message(ctx->wm, 0, ANSI_GRAY "Nota: Ejecuta WHOIS y WHOWAS para información completa" ANSI_RESET);
+        return;
+    }
+
+    if (!ctx->irc->connected) {
+        wm_add_message(ctx->wm, 0, ANSI_RED "Error: No estás conectado a un servidor" ANSI_RESET);
+        return;
+    }
+
+    /* Construir y enviar comando WHOIS */
+    char cmd_whois[MAX_MSG_LEN];
+    snprintf(cmd_whois, sizeof(cmd_whois), "WHOIS %s", args);
+    irc_send(ctx->irc, cmd_whois);
+
+    /* Construir y enviar comando WHOWAS */
+    char cmd_whowas[MAX_MSG_LEN];
+    snprintf(cmd_whowas, sizeof(cmd_whowas), "WHOWAS %s", args);
+    irc_send(ctx->irc, cmd_whowas);
+
+    /* Mostrar comandos enviados */
+    char display[MAX_MSG_LEN];
+    snprintf(display, sizeof(display), ANSI_GRAY ">> %s" ANSI_RESET, cmd_whois);
+    wm_add_message(ctx->wm, 0, display);
+
+    snprintf(display, sizeof(display), ANSI_GRAY ">> %s" ANSI_RESET, cmd_whowas);
     wm_add_message(ctx->wm, 0, display);
 }

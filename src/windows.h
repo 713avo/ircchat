@@ -41,6 +41,8 @@ typedef struct {
     bool list_ordered;              /* Indica si la lista está ordenada */
     char list_filter[256];          /* Filtro de búsqueda (con wildcards) */
     int list_limit;                 /* Límite de resultados (0 = sin límite) */
+    int list_min_users;             /* Filtro mínimo de usuarios (0 = sin mínimo) */
+    int list_max_users;             /* Filtro máximo de usuarios (0 = sin máximo) */
 } Window;
 
 /* Gestor de ventanas */

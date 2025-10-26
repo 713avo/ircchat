@@ -48,6 +48,8 @@ void cmd_timestamp(CommandContext *ctx, const char *args);
 void cmd_ttformat(CommandContext *ctx, const char *args);
 void cmd_list(CommandContext *ctx, const char *args);
 void cmd_raw(CommandContext *ctx, const char *args);
+void cmd_whois(CommandContext *ctx, const char *args);
+void cmd_wii(CommandContext *ctx, const char *args);
 
 /* Procesador de comandos */
 bool process_command(CommandContext *ctx, const char *input);

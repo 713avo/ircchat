@@ -7,7 +7,10 @@ Cliente IRC completo en C con interfaz de terminal, diseñado para ser ligero, r
 ### 🎨 Interfaz
 - **Múltiples ventanas**: Sistema, canales y mensajes privados
 - **Lista de usuarios**: Muestra usuarios en canales con prefijos de modo (@, +, %, ~, &)
-- **Word wrap**: Los mensajes largos se ajustan automáticamente al ancho de terminal
+- **Word wrap inteligente**: Los mensajes largos se ajustan automáticamente al ancho de terminal
+  - **Preservación de colores**: Los formatos ANSI (colores, negrita, etc.) se mantienen al hacer wrap
+  - **Continuidad visual**: Las líneas continuadas mantienen el mismo formato que la línea original
+  - **Sin pérdida de formato**: Colores, negrita, subrayado se preservan entre líneas
 - **Scroll**: Desplazamiento en buffer de mensajes y lista de usuarios
 - **UTF-8**: Soporte completo para caracteres UTF-8
 - **Colores mIRC**: Renderiza códigos de color mIRC (^C, ^B, ^U, etc.)
@@ -124,11 +127,18 @@ NOTIFY=alice,bob,charlie
 ### Canales
 - `/join <#canal>` - Unirse a un canal
 - `/part` - Salir del canal actual
-- `/list [num <n>] [order] [search <patrón>]` - Listar canales del servidor
-  - `num <n>` - Limitar a n resultados
+- `/list [num <n>] [users <n>|<min>-<max>] [order] [search <patrón>]` - Listar canales del servidor
+  - `num <n>` - Limitar a n resultados (cuántos canales mostrar)
+  - `users <n>` - Filtrar por número exacto de usuarios
+  - `users <min>-<max>` - Filtrar por rango de usuarios
   - `order` - Ordenar por número de usuarios (mayor a menor)
   - `search <patrón>` - Filtrar por patrón (wildcards * y ?)
-  - Ejemplos: `/list`, `/list order`, `/list num 10 *linux* order`
+  - Ejemplos:
+    - `/list` - Listar todos los canales
+    - `/list order` - Ordenar por usuarios
+    - `/list num 10 users 10-40 order search *linux*` - Máximo 10 canales con 10-40 usuarios, ordenados, que contengan "linux"
+    - `/list users 50` - Solo canales con exactamente 50 usuarios
+    - `/list users 20-100 order` - Canales con 20-100 usuarios, ordenados
 
 ### Mensajes
 - `/msg <nick> <mensaje>` - Enviar mensaje privado
@@ -151,6 +161,13 @@ NOTIFY=alice,bob,charlie
 ### Utilidades
 - `/ok` - Borrar todas las notificaciones (C, M, *, +)
 - `/help` - Mostrar ayuda
+- `/whois <nick>` - Obtener información de un usuario conectado
+  - Ejemplos: `/whois alice`
+  - Muestra información del servidor sobre el usuario (host, canales, idle time, etc.)
+- `/wii <nick>` - Obtener información completa (WHOIS + WHOWAS)
+  - Ejemplos: `/wii bob`
+  - Ejecuta WHOIS (usuario actual) y WHOWAS (historial)
+  - Útil para usuarios que ya no están conectados
 
 ### Comandos IRC avanzados
 - `/raw <comando>` - Enviar comando IRC raw al servidor
@@ -237,6 +254,28 @@ NOTIFY=alice,bob
 # Presiona /ok para limpiar
 ```
 
+### Información de usuarios
+```
+# Ver información de usuario conectado
+/whois alice
+# Respuesta del servidor muestra:
+#   - Hostname y dirección
+#   - Nombre real
+#   - Canales donde está
+#   - Tiempo idle
+
+# Ver información completa (conectado + historial)
+/wii bob
+# Ejecuta WHOIS y WHOWAS:
+#   - Información actual si está conectado
+#   - Historial de conexiones previas
+#   - Funciona incluso si el usuario ya se desconectó
+
+# Caso de uso: verificar usuario desconectado
+/wii charlie
+# Muestra cuando charlie estuvo conectado por última vez
+```
+
 ## Estructura de archivos
 
 ```
@@ -285,6 +324,17 @@ make clean && make
 
 Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
+## Características recientes implementadas
+
+- [x] Word wrap con preservación de colores (v1.1.0)
+- [x] Comando /whois para información de usuarios (v1.1.0)
+- [x] Comando /wii con WHOIS + WHOWAS (v1.1.0)
+- [x] Filtrado avanzado en /list por rango de usuarios (v1.1.0)
+- [x] Sistema de notificaciones visual (C, M, *, +)
+- [x] Autocompletado de nicks con TAB
+- [x] Logging automático con timestamps
+- [x] Soporte completo UTF-8 y colores mIRC
+
 ## Características futuras
 
 - [ ] Soporte SSL/TLS
@@ -293,6 +343,8 @@ Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE)
 - [ ] Búsqueda en buffer
 - [ ] Scripts de automatización
 - [ ] Notificaciones de sistema (libnotify)
+- [ ] Alias de comandos configurables
+- [ ] Macros y bindings personalizados
 
 ## Créditos
 

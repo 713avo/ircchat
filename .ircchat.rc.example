@@ -2,6 +2,21 @@
 # Ubicación: ~/.ircchat.rc
 # Las líneas que empiezan con # son comentarios
 
+# ==================== NOVEDADES VERSIÓN 1.1.0 ====================
+#
+# ✨ Nuevas características:
+#   - Word wrap con preservación de colores ANSI
+#   - Comando /whois para información de usuarios
+#   - Comando /wii con WHOIS + WHOWAS (funciona con usuarios desconectados)
+#   - Filtrado avanzado /list con opción 'users' para rangos
+#
+# 🔧 Mejoras:
+#   - Los mensajes largos con colores mantienen el formato al hacer wrap
+#   - /list ahora soporta: /list users 10-40 order
+#   - Autojoin corregido (solo se ejecuta en conexión inicial)
+#
+# 📖 Ver CHANGELOG.md para detalles completos
+#
 # ==================== CONEXIÓN IRC ====================
 
 # Nick por defecto al conectar
@@ -21,6 +36,7 @@
 # Permite desplazarse hacia arriba para ver mensajes antiguos
 # Valores: on, off, yes, no, true, false, 1, 0
 # Por defecto: on
+# Nota: El word wrap ahora preserva colores ANSI automáticamente (v1.1.0)
 BUFFER=on
 
 # Modo silencioso: oculta mensajes de protocolo IRC (JOIN/QUIT/PART/PRIVMSG)
@@ -116,6 +132,18 @@ LOG=off
 # === Canales ===
 # /join <#canal>               Unirse a un canal
 # /part                        Salir del canal actual
+# /list [opciones]             Listar canales del servidor
+#   Opciones:
+#     num <n>                  Limitar a n resultados
+#     users <n>                Filtrar por número exacto de usuarios
+#     users <min>-<max>        Filtrar por rango de usuarios
+#     order                    Ordenar por usuarios (mayor a menor)
+#     search <patrón>          Filtrar por patrón (* y ? wildcards)
+#   Ejemplos:
+#     /list                                        Todos los canales
+#     /list order                                  Ordenados por usuarios
+#     /list users 10-40                            Canales con 10-40 usuarios
+#     /list num 10 users 10-40 order *linux*       Top 10, 10-40 usuarios, "linux"
 
 # === Mensajes ===
 # /msg <nick> <mensaje>        Enviar mensaje privado a un usuario
@@ -138,6 +166,14 @@ LOG=off
 # === Notificaciones ===
 # /ok                          Borrar todas las notificaciones activas
 #                              (limpia indicadores C, M, *, +)
+
+# === Información de usuarios ===
+# /whois <nick>                Obtener información de usuario (solo WHOIS)
+# /wii <nick>                  Información completa (WHOIS + WHOWAS)
+#   Diferencias:
+#     /whois alice             Solo información actual de alice
+#     /wii bob                 Información actual + historial de bob
+#   Nota: WHOWAS funciona con usuarios desconectados
 
 # ==================== INDICADORES DE NOTIFICACIÓN ====================
 

@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-/* Dividir texto en líneas según ancho máximo
+/* Dividir texto en líneas según ancho máximo preservando formatos ANSI
  * Retorna número de líneas generadas
  * lines debe ser un array de punteros a char con espacio suficiente
  * max_lines es el número máximo de líneas a generar
@@ -14,6 +14,10 @@ static int wrap_text(const char *text, int max_width, char **lines, int max_line
     int text_len = strlen(text);
     int pos = 0;
 
+    /* Buffer para almacenar códigos ANSI activos */
+    char active_codes[512] = "";
+    int active_codes_len = 0;
+
     while (pos < text_len && line_count < max_lines) {
         int line_start = pos;
         int line_end = pos;
@@ -23,12 +27,31 @@ static int wrap_text(const char *text, int max_width, char **lines, int max_line
         while (pos < text_len && visible_chars < max_width) {
             /* Detectar secuencia ANSI */
             if (text[pos] == '\033' && pos + 1 < text_len && text[pos + 1] == '[') {
+                int ansi_start = pos;
                 /* Saltar secuencia ANSI completa */
                 pos += 2;
                 while (pos < text_len && text[pos] != 'm') {
                     pos++;
                 }
                 if (pos < text_len) pos++; /* Saltar 'm' */
+
+                int ansi_len = pos - ansi_start;
+
+                /* Verificar si es un código de reset */
+                if (ansi_len >= 4 && text[ansi_start + 2] == '0' && text[ansi_start + 3] == 'm') {
+                    /* Reset: limpiar códigos activos */
+                    active_codes[0] = '\0';
+                    active_codes_len = 0;
+                } else {
+                    /* Guardar código ANSI en active_codes (evitar overflow) */
+                    if (active_codes_len + ansi_len < (int)sizeof(active_codes) - 1) {
+                        memcpy(active_codes + active_codes_len, text + ansi_start, ansi_len);
+                        active_codes_len += ansi_len;
+                        active_codes[active_codes_len] = '\0';
+                    }
+                }
+
+                line_end = pos;
                 continue;
             }
 
@@ -52,13 +75,29 @@ static int wrap_text(const char *text, int max_width, char **lines, int max_line
         /* Crear línea */
         int line_bytes = line_end - line_start;
         if (line_bytes > 0) {
-            /* Añadir espacio para reset ANSI: \033[0m (4 bytes) */
-            lines[line_count] = malloc(line_bytes + 5);
+            /* Calcular tamaño total: códigos activos previos + contenido + reset ANSI */
+            int prefix_len = (line_count > 0) ? active_codes_len : 0;
+            int total_size = prefix_len + line_bytes + 5; /* +5 para \033[0m + \0 */
+
+            lines[line_count] = malloc(total_size);
             if (lines[line_count]) {
-                memcpy(lines[line_count], text + line_start, line_bytes);
-                /* Añadir reset ANSI al final para evitar que el formato se escape */
-                memcpy(lines[line_count] + line_bytes, "\033[0m", 4);
-                lines[line_count][line_bytes + 4] = '\0';
+                char *ptr = lines[line_count];
+
+                /* Si no es la primera línea, añadir códigos activos al inicio */
+                if (line_count > 0 && active_codes_len > 0) {
+                    memcpy(ptr, active_codes, active_codes_len);
+                    ptr += active_codes_len;
+                }
+
+                /* Copiar contenido de la línea */
+                memcpy(ptr, text + line_start, line_bytes);
+                ptr += line_bytes;
+
+                /* Añadir reset ANSI al final */
+                memcpy(ptr, "\033[0m", 4);
+                ptr += 4;
+                *ptr = '\0';
+
                 line_count++;
             }
         }

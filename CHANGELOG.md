@@ -1,6 +1,270 @@
 # Changelog - Cliente IRC
 
-## Versión Actual
+## Versión 1.1.0 - 26 de Octubre de 2025
+
+### 📋 Resumen de la Versión
+
+Esta versión introduce mejoras significativas en renderizado, comandos de información de usuarios y filtrado avanzado de canales.
+
+**Principales mejoras**:
+- ✨ Word wrap con preservación de colores ANSI
+- 🔍 Comandos `/whois` y `/wii` (con WHOWAS)
+- 📊 Filtrado por rango de usuarios en `/list`
+- 🐛 Corrección de autojoin incorrecto
+
+**Archivos modificados**:
+- `src/terminal.c` - Algoritmo de word wrap mejorado
+- `src/commands.c` - Nuevos comandos whois/wii y filtrado list
+- `src/windows.h` - Campos para filtro de usuarios
+- `src/main.c` - Fix detección RPL_WELCOME
+
+---
+
+### Nuevas Funcionalidades
+
+#### Word Wrap con Preservación de Colores
+
+**Corrección crítica en el renderizado de mensajes largos**:
+- **Problema corregido**: Las líneas largas con formato de color perdían el color al hacer word wrap
+- **Solución implementada** (`src/terminal.c:10-109`):
+  - Nueva función `wrap_text()` que rastrea códigos ANSI activos
+  - Buffer de códigos activos (`active_codes`) que se preserva entre líneas
+  - Detección de códigos reset (`\033[0m`) para limpiar formatos
+  - Re-aplicación automática de formatos al inicio de líneas continuadas
+- **Comportamiento mejorado**:
+  - Los colores se mantienen consistentes en todas las líneas wrapeadas
+  - La negrita, subrayado y otros formatos también se preservan
+  - Los códigos reset funcionan correctamente limpiando formatos
+- **Impacto**: Mejora significativa en la legibilidad de mensajes largos con formato
+
+#### Comando `/whois` y `/wii` Mejorado
+
+**Nuevo comando para obtener información de usuarios**:
+- Comando `/whois <nick>` - Obtiene información de usuario conectado (solo WHOIS)
+- Comando `/wii <nick>` - Obtiene información completa (WHOIS + WHOWAS)
+- **Diferencia clave**:
+  - `/whois` envía solo WHOIS (información de usuario actualmente conectado)
+  - `/wii` envía WHOIS y WHOWAS (información actual + historial)
+- **Ventaja de WHOWAS**:
+  - Proporciona información de usuarios que ya se desconectaron
+  - Muestra última vez que estuvieron conectados
+  - Útil para verificar identidad de nicks desconectados
+
+**Información típica proporcionada**:
+- Hostname y dirección del usuario
+- Nombre real configurado
+- Canales en los que está (WHOIS) o estuvo (WHOWAS)
+- Servidor IRC al que está conectado
+- Tiempo de inactividad (idle time)
+- Si es operador del servidor
+- Última vez conectado (WHOWAS)
+
+**Ejemplos de uso**:
+```
+/whois alice          # Solo información actual de alice
+/wii bob              # Información actual + historial de bob
+/wii charlie          # Funciona incluso si charlie ya se desconectó
+```
+
+#### Comando `/list` con Filtro por Usuarios
+
+**Filtrado avanzado de canales por número de usuarios**:
+- Nueva opción `users <n>` - Filtrar por número exacto de usuarios
+  - Ejemplo: `/list users 50` - Solo canales con exactamente 50 usuarios
+- Nueva opción `users <min>-<max>` - Filtrar por rango de usuarios
+  - Ejemplo: `/list users 10-40` - Solo canales con entre 10 y 40 usuarios
+- La opción `num` ahora se distingue claramente como límite de resultados
+  - `num <n>` - Limita cuántos canales mostrar en total
+  - `users <rango>` - Filtra qué canales incluir según usuarios
+- Todas las opciones son combinables en cualquier orden
+  - Ejemplo completo: `/list num 10 users 10-40 order search *linux*`
+    - Máximo 10 canales
+    - Con 10-40 usuarios
+    - Ordenados por usuarios
+    - Que contengan "linux" en el nombre
+
+**Orden de procesamiento**:
+1. Filtro por rango de usuarios (`users`)
+2. Filtro por patrón de búsqueda (`search`)
+3. Ordenamiento por usuarios (`order`)
+4. Límite de resultados (`num`)
+
+**Mensajes informativos**:
+- La ventana LIST muestra todos los filtros aplicados
+- Se indica el rango de usuarios al inicio y al final de la lista
+- Formato claro: "Rango de usuarios: 10-40" o "Usuarios mínimos: 10"
+
+### Correcciones de Bugs
+
+#### Fix: Autojoin Incorrecto en Comando `/list`
+
+**Problema corregido**:
+- Al ejecutar `/list`, se activaba incorrectamente el autojoin
+- Se creaban ventanas duplicadas de canales ya unidos
+- Las ventanas duplicadas aparecían vacías (sin mensajes ni usuarios)
+
+**Causa**:
+- La detección del mensaje RPL_WELCOME (001) era demasiado permisiva
+- Buscaba la palabra "Welcome" en cualquier mensaje del servidor
+- Mensajes de la lista de canales podían contener esa palabra
+
+**Solución implementada** (`src/main.c:72`):
+- Detección más estricta del mensaje 001
+- Verifica el código numérico " 001 " (con espacios)
+- Verifica que el mensaje comience con ':' (formato estándar IRC)
+- Condición: `if (strstr(line, " 001 ") != NULL && line[0] == ':')`
+
+**Resultado**:
+- El autojoin ahora solo se ejecuta al conectar inicialmente
+- `/list` ya no genera ventanas duplicadas
+- Comportamiento más confiable y predecible
+
+### Cambios Técnicos
+
+#### Algoritmo de Word Wrap Mejorado
+
+**Función `wrap_text()` reescrita (`src/terminal.c:10-109`)**:
+- **Buffer de códigos activos**: Array de 512 bytes para almacenar códigos ANSI
+- **Rastreo de formatos**: Detecta y guarda todos los códigos ANSI encontrados
+- **Detección de reset**: Identifica `\033[0m` y limpia el buffer de códigos
+- **Preservación entre líneas**:
+  - Línea N termina con `\033[0m` (reset)
+  - Línea N+1 comienza con códigos activos de línea N
+- **Manejo de memoria**: Calcula tamaño dinámicamente considerando códigos preservados
+- **Algoritmo**:
+  1. Procesar texto carácter por carácter
+  2. Saltar y guardar secuencias ANSI (no cuentan para ancho)
+  3. Contar solo caracteres visibles UTF-8
+  4. Al hacer break: añadir reset al final, códigos al inicio de siguiente línea
+
+#### Comandos WHOIS/WHOWAS
+
+**Nueva función `cmd_wii()` (`src/commands.c:803-834`)**:
+- Envía dos comandos IRC secuenciales: WHOIS seguido de WHOWAS
+- Usa `irc_send()` dos veces con el mismo nick
+- Muestra confirmación de ambos comandos enviados
+- Diferenciada de `cmd_whois()` que solo envía WHOIS
+
+**Función `cmd_whois()` modificada (`src/commands.c:777-801`)**:
+- Simplificada para solo enviar WHOIS
+- Eliminada referencia a alias /wii en la ayuda
+- Validación de argumentos y conexión
+
+#### Estructura de Datos
+
+**Nuevos campos en `Window` (`src/windows.h`)**:
+- `int list_min_users` - Filtro mínimo de usuarios (0 = sin mínimo)
+- `int list_max_users` - Filtro máximo de usuarios (0 = sin máximo)
+
+**Inicialización**:
+- Los campos se inicializan en 0 al crear ventanas
+- Se resetean al limpiar la lista de canales
+
+#### Parsing de Comandos
+
+**Función `cmd_list()` actualizada (`src/commands.c`)**:
+- Nuevo parsing para opción `users`:
+  - Detecta formato de rango con guión: `10-40`
+  - Detecta número específico: `50`
+  - Valida y corrige rangos invertidos automáticamente
+- Separación clara entre `num` (límite) y `users` (filtro)
+- Soporte para combinación de todas las opciones
+
+#### Filtrado de Canales
+
+**Función `window_finalize_channel_list()` mejorada (`src/windows.c`)**:
+- Nuevo filtrado por rango de usuarios antes de otros filtros
+- Verifica mínimo y máximo de usuarios por canal
+- Elimina canales que no cumplan el rango
+- Actualiza el contador de canales correctamente
+- Muestra información del rango aplicado en el resumen
+
+### Comandos Nuevos y Actualizados
+
+#### `/whois` y `/wii` - Información de Usuario
+
+```
+/whois <nick>        # Solo WHOIS
+/wii <nick>          # WHOIS + WHOWAS
+```
+
+**Descripción**:
+- `/whois` obtiene información solo de usuarios actualmente conectados
+- `/wii` obtiene información completa: usuarios conectados Y histórico
+- La respuesta del servidor incluye múltiples mensajes con información completa
+- **Diferencia principal**: WHOWAS funciona con usuarios desconectados
+
+**Implementación** (`src/commands.c`):
+- Función `cmd_whois()` (líneas 777-801): construye y envía solo WHOIS
+- Función `cmd_wii()` (líneas 803-834): envía WHOIS y WHOWAS secuencialmente
+- Ambas validan conexión al servidor y argumentos
+- Envío mediante `irc_send()`
+- Confirmación visual en ventana de sistema
+- `/wii` muestra dos confirmaciones (una por cada comando)
+
+#### `/list` - Sintaxis Completa
+
+```
+/list [num <n>] [users <n>|<min>-<max>] [order] [search <patrón>]
+```
+
+**Parámetros**:
+- `num <n>` - Limitar a n resultados (cuántos canales mostrar)
+- `users <n>` - Filtrar por número exacto de usuarios
+- `users <min>-<max>` - Filtrar por rango de usuarios
+- `order` - Ordenar por número de usuarios (mayor a menor)
+- `search <patrón>` - Filtrar por patrón (wildcards * y ?)
+
+**Ejemplos de uso**:
+```
+/list                                           # Todos los canales
+/list users 50                                  # Solo canales con 50 usuarios
+/list users 10-40                               # Canales con 10-40 usuarios
+/list users 20-100 order                        # Canales con 20-100 usuarios, ordenados
+/list num 10 users 10-40 order search *linux*   # 10 canales, 10-40 usuarios, ordenados, con "linux"
+```
+
+### Documentación Actualizada
+
+- **README.md**: Actualizado con nueva sintaxis de `/list`, ejemplos de `/whois`/`/wii`, y sección de word wrap
+- **QUICKSTART.md**: Comandos esenciales actualizados
+- **.ircchat.rc.example**: Documentación completa de comandos con ejemplos
+- **CHANGELOG.md**: Esta sección con todos los cambios técnicos
+
+### 🔄 Notas de Actualización
+
+**Para usuarios existentes**:
+- No se requiere migración de archivos de configuración
+- El archivo `~/.ircchat.rc` sigue funcionando sin cambios
+- Los archivos de log existentes se mantienen compatibles
+- Todas las características anteriores siguen funcionando igual
+
+**Cambios de comportamiento**:
+- `/list` ahora soporta filtrado por usuarios con nueva opción `users`
+- El autojoin ahora solo se ejecuta al mensaje 001 real del servidor
+- `/wii` ahora envía WHOIS + WHOWAS en lugar de solo WHOIS
+
+**Comandos nuevos**:
+- `/whois <nick>` - Información de usuario (solo WHOIS)
+- `/wii <nick>` - Información completa (WHOIS + WHOWAS)
+
+### ✅ Compatibilidad
+
+**Probado en**:
+- Termux (Android)
+- Linux con GCC 11+
+- Servidores IRC: Libera.Chat, OFTC
+
+**Requisitos**:
+- GCC con soporte C11
+- Terminal con soporte ANSI y UTF-8
+- Sistema Unix/Linux
+
+**Nota**: No se requiere recompilación de archivos de configuración. Solo ejecuta `make clean && make` para obtener la nueva versión.
+
+---
+
+## Versión Anterior
 
 ### Nuevas Funcionalidades
 
