@@ -16,6 +16,7 @@ typedef struct {
     bool *silent_mode;
     bool *notify_alert;
     bool *mention_alert;
+    int *debug_window_id;
 } CommandContext;
 
 /* Función de comando */
@@ -50,6 +51,10 @@ void cmd_list(CommandContext *ctx, const char *args);
 void cmd_raw(CommandContext *ctx, const char *args);
 void cmd_whois(CommandContext *ctx, const char *args);
 void cmd_wii(CommandContext *ctx, const char *args);
+void cmd_debug(CommandContext *ctx, const char *args);
+
+/* Función de logging de debug */
+void debug_log(WindowManager *wm, int debug_window_id, const char *format, ...);
 
 /* Procesador de comandos */
 bool process_command(CommandContext *ctx, const char *input);

@@ -595,6 +595,7 @@ int main(void) {
     bool silent_mode = config->silent_mode;
     bool notify_alert = false;
     bool mention_alert = false;
+    int debug_window_id = -1;  /* -1 = debug desactivado */
 
     /* Aplicar configuración del buffer a todas las ventanas existentes */
     for (int i = 0; i < MAX_WINDOWS; i++) {
@@ -627,7 +628,8 @@ int main(void) {
         .buffer_enabled = &buffer_enabled,
         .silent_mode = &silent_mode,
         .notify_alert = &notify_alert,
-        .mention_alert = &mention_alert
+        .mention_alert = &mention_alert,
+        .debug_window_id = &debug_window_id
     };
 
     /* Mensaje de bienvenida */
@@ -752,30 +754,49 @@ int main(void) {
             }
             else if (key == KEY_TAB) {
                 /* Autocompletado de nicks */
+                debug_log(wm, debug_window_id, "TAB: inicio autocompletado");
                 Window *win = wm_get_active_window(wm);
                 if (win && win->type == WIN_CHANNEL && win->users) {
+                    debug_log(wm, debug_window_id, "TAB: ventana canal detectada, cursor_pos=%d, line_len=%d",
+                              input.cursor_pos, input.length);
+
                     /* Buscar inicio de la palabra actual */
                     int word_start = input.cursor_pos;
                     while (word_start > 0 && input.line[word_start - 1] != ' ') {
                         word_start--;
                     }
 
-                    /* Extraer palabra parcial */
+                    /* Extraer palabra parcial con validación */
                     int word_len = input.cursor_pos - word_start;
                     char partial[MAX_NICK_LEN] = "";
-                    if (word_len > 0 && word_len < MAX_NICK_LEN) {
-                        strncpy(partial, input.line + word_start, word_len);
-                        partial[word_len] = '\0';
+
+                    if (word_len > 0 && word_len < MAX_NICK_LEN && word_start >= 0 &&
+                        word_start < MAX_INPUT_LEN && input.cursor_pos <= input.length) {
+
+                        /* Asegurar que no copiamos más allá del buffer */
+                        int safe_len = MIN(word_len, MAX_NICK_LEN - 1);
+                        safe_len = MIN(safe_len, input.length - word_start);
+
+                        if (safe_len > 0) {
+                            strncpy(partial, input.line + word_start, safe_len);
+                            partial[safe_len] = '\0';
+                        }
                     }
+
+                    debug_log(wm, debug_window_id, "TAB: palabra='%s', word_start=%d, word_len=%d",
+                              partial, word_start, word_len);
 
                     /* Si es nueva búsqueda o prefijo cambió */
                     if (!autocomplete_active || strcmp(partial, autocomplete_prefix) != 0) {
                         strncpy(autocomplete_prefix, partial, MAX_NICK_LEN - 1);
+                        autocomplete_prefix[MAX_NICK_LEN - 1] = '\0';
                         autocomplete_index = 0;
                         autocomplete_active = true;
+                        debug_log(wm, debug_window_id, "TAB: nueva búsqueda, prefix='%s'", autocomplete_prefix);
                     } else {
                         /* Rotar al siguiente */
                         autocomplete_index++;
+                        debug_log(wm, debug_window_id, "TAB: rotar a index=%d", autocomplete_index);
                     }
 
                     /* Buscar nick que coincida */
@@ -789,6 +810,7 @@ int main(void) {
                             if (match_count == autocomplete_index) {
                                 strncpy(match, user->nick, MAX_NICK_LEN - 1);
                                 match[MAX_NICK_LEN - 1] = '\0';
+                                debug_log(wm, debug_window_id, "TAB: match encontrado='%s'", match);
                                 break;
                             }
                             match_count++;
@@ -798,27 +820,37 @@ int main(void) {
 
                     /* Si encontramos match, completar */
                     if (match[0] != '\0') {
-                        /* Borrar palabra parcial */
-                        while (input.cursor_pos > word_start) {
+                        /* Borrar palabra parcial con validación */
+                        int backspace_count = 0;
+                        while (input.cursor_pos > word_start && backspace_count < MAX_NICK_LEN) {
                             input_backspace(&input);
+                            backspace_count++;
                         }
 
-                        /* Insertar nick completo */
-                        for (size_t i = 0; i < strlen(match); i++) {
+                        debug_log(wm, debug_window_id, "TAB: backspaces=%d, insertando '%s'",
+                                  backspace_count, match);
+
+                        /* Insertar nick completo con verificación de longitud */
+                        size_t match_len = strlen(match);
+                        for (size_t i = 0; i < match_len && input.length < MAX_INPUT_LEN - 3; i++) {
                             input_add_char(&input, match[i]);
                         }
 
                         /* Si está al inicio de línea, añadir : y espacio */
-                        if (word_start == 0) {
+                        if (word_start == 0 && input.length < MAX_INPUT_LEN - 2) {
                             input_add_char(&input, ':');
                             input_add_char(&input, ' ');
                         }
                     } else {
                         /* No hay más matches, volver al inicio */
                         autocomplete_index = 0;
+                        debug_log(wm, debug_window_id, "TAB: no hay más matches, reset index");
                     }
 
                     term_draw_interface(&term, wm, input.line, input.cursor_pos, notify_alert, mention_alert);
+                } else {
+                    debug_log(wm, debug_window_id, "TAB: no aplicable (win=%p, type=%d)",
+                              (void*)win, win ? win->type : -1);
                 }
             }
             else if (key == KEY_ARROW_UP) {

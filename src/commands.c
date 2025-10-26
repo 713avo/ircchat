@@ -1,4 +1,6 @@
 #include "commands.h"
+#include <time.h>
+#include <stdarg.h>
 
 /* Tabla de comandos */
 static Command command_table[] = {
@@ -23,6 +25,7 @@ static Command command_table[] = {
     {"raw", cmd_raw, "Enviar comando IRC raw: /raw <comando IRC>"},
     {"whois", cmd_whois, "Información de usuario: /whois <nick>"},
     {"wii", cmd_wii, "Información de usuario: /wii <nick> (whois + whowas)"},
+    {"debug", cmd_debug, "Modo debug: /debug on|off (abre ventana de depuración)"},
     {NULL, NULL, NULL}
 };
 
@@ -846,4 +849,67 @@ void cmd_wii(CommandContext *ctx, const char *args) {
 
     snprintf(display, sizeof(display), ANSI_GRAY ">> %s" ANSI_RESET, cmd_whowas);
     wm_add_message(ctx->wm, 0, display);
+}
+
+/* Comando: debug */
+void cmd_debug(CommandContext *ctx, const char *args) {
+    if (!args || args[0] == '\0') {
+        /* Mostrar estado actual */
+        const char *state = (*ctx->debug_window_id != -1) ? "ON" : "OFF";
+        char msg[MAX_MSG_LEN];
+        snprintf(msg, sizeof(msg), ANSI_CYAN "Modo debug: %s" ANSI_RESET, state);
+        wm_add_message(ctx->wm, 0, msg);
+        return;
+    }
+
+    if (strcasecmp(args, "on") == 0 || strcasecmp(args, "1") == 0) {
+        /* Activar debug */
+        if (*ctx->debug_window_id == -1) {
+            *ctx->debug_window_id = wm_create_window(ctx->wm, WIN_DEBUG, "[DEBUG]");
+            if (*ctx->debug_window_id != -1) {
+                wm_add_message(ctx->wm, 0, ANSI_GREEN "Modo debug activado (ventana de depuración creada)" ANSI_RESET);
+                wm_switch_to(ctx->wm, *ctx->debug_window_id);
+                debug_log(ctx->wm, *ctx->debug_window_id, "=== DEBUG MODE ACTIVADO ===");
+                debug_log(ctx->wm, *ctx->debug_window_id, "Esta ventana muestra información de depuración interna");
+            } else {
+                wm_add_message(ctx->wm, 0, ANSI_RED "Error: No se pudo crear ventana de debug" ANSI_RESET);
+            }
+        } else {
+            wm_add_message(ctx->wm, 0, ANSI_YELLOW "Modo debug ya está activado" ANSI_RESET);
+        }
+    } else if (strcasecmp(args, "off") == 0 || strcasecmp(args, "0") == 0) {
+        /* Desactivar debug */
+        if (*ctx->debug_window_id != -1) {
+            wm_close_window(ctx->wm, *ctx->debug_window_id);
+            *ctx->debug_window_id = -1;
+            wm_add_message(ctx->wm, 0, ANSI_YELLOW "Modo debug desactivado" ANSI_RESET);
+        } else {
+            wm_add_message(ctx->wm, 0, ANSI_YELLOW "Modo debug ya está desactivado" ANSI_RESET);
+        }
+    } else {
+        wm_add_message(ctx->wm, 0, ANSI_RED "Error: Uso /debug on|off" ANSI_RESET);
+    }
+}
+
+/* Función de logging de debug */
+void debug_log(WindowManager *wm, int debug_window_id, const char *format, ...) {
+    if (debug_window_id == -1) return;
+
+    char buffer[MAX_MSG_LEN];
+    va_list args;
+
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    /* Añadir timestamp */
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "[%H:%M:%S]", tm_info);
+
+    char msg[MAX_MSG_LEN];
+    snprintf(msg, sizeof(msg), ANSI_GRAY "%s" ANSI_RESET " %s", timestamp, buffer);
+
+    wm_add_message(wm, debug_window_id, msg);
 }

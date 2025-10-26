@@ -286,6 +286,7 @@ void term_draw_interface(TerminalState *term, WindowManager *wm, const char *inp
         case WIN_SYSTEM:
         case WIN_PRIVATE:
         case WIN_LIST:
+        case WIN_DEBUG:
             term_draw_system_window(term, active_win);
             break;
         case WIN_CHANNEL:

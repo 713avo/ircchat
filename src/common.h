@@ -28,7 +28,8 @@ typedef enum {
     WIN_SYSTEM,
     WIN_CHANNEL,
     WIN_PRIVATE,
-    WIN_LIST
+    WIN_LIST,
+    WIN_DEBUG
 } WindowType;
 
 /* Códigos de escape ANSI para colores */
