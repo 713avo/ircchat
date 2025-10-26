@@ -21,7 +21,7 @@ void signal_handler(int sig) {
 
 /* Procesar mensajes IRC recibidos */
 void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
-                         bool *notify_status, bool *notify_alert, bool *mention_alert, bool silent_mode) {
+                         bool *notify_status, bool *notify_alert, bool *mention_alert, bool silent_mode, int debug_window_id) {
     if (!irc || !irc->connected) return;
 
     char buffer[4096];
@@ -372,6 +372,17 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                 if (names_start) {
                     names_start += 2; /* Saltar " :" */
 
+                    /* Crear copia limpia para strtok (no modifica el original) */
+                    char names_copy[MAX_MSG_LEN];
+                    strncpy(names_copy, names_start, sizeof(names_copy) - 1);
+                    names_copy[sizeof(names_copy) - 1] = '\0';
+
+                    /* Limpiar \r\n del final */
+                    char *newline = strchr(names_copy, '\r');
+                    if (newline) *newline = '\0';
+                    newline = strchr(names_copy, '\n');
+                    if (newline) *newline = '\0';
+
                     /* Encontrar el canal en esta línea */
                     char channel[MAX_CHANNEL_LEN] = "";
                     char *chan_ptr = strchr(line, '#');
@@ -383,12 +394,15 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                         }
                         channel[chan_len] = '\0';
 
+                        debug_log(wm, debug_window_id, "NAMES: canal=%s, nicks='%s'", channel, names_copy);
+
                         /* Buscar la ventana del canal */
                         for (int i = 0; i < MAX_WINDOWS; i++) {
                             Window *w = wm_get_window(wm, i);
                             if (w && w->type == WIN_CHANNEL && strcmp(w->title, channel) == 0) {
                                 /* Parsear lista de nicks */
-                                char *nick_token = strtok(names_start, " ");
+                                char *nick_token = strtok(names_copy, " ");
+                                int nick_count = 0;
                                 while (nick_token) {
                                     char mode = ' ';
                                     char *nick_start = nick_token;
@@ -413,10 +427,12 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
 
                                     if (strlen(nick_start) > 0) {
                                         window_add_user_with_mode(w, nick_start, mode);
+                                        nick_count++;
                                     }
 
                                     nick_token = strtok(NULL, " ");
                                 }
+                                debug_log(wm, debug_window_id, "NAMES: añadidos %d usuarios a %s", nick_count, channel);
                                 break;
                             }
                         }
@@ -680,7 +696,7 @@ int main(void) {
 
         /* Procesar mensajes IRC */
         if (ret > 0 && irc->connected && FD_ISSET(irc->sockfd, &readfds)) {
-            process_irc_messages(irc, wm, config, notify_status, &notify_alert, &mention_alert, silent_mode);
+            process_irc_messages(irc, wm, config, notify_status, &notify_alert, &mention_alert, silent_mode, debug_window_id);
             term_draw_interface(&term, wm, input.line, input.cursor_pos, notify_alert, mention_alert);
         }
 
