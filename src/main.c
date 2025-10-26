@@ -252,6 +252,12 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                                     window_open_log(found_win);
                                 }
                             }
+
+                            /* Solicitar lista de usuarios del canal */
+                            char names_cmd[MAX_MSG_LEN];
+                            snprintf(names_cmd, sizeof(names_cmd), "NAMES %s", channel);
+                            irc_send(irc, names_cmd);
+                            debug_log(wm, debug_window_id, "JOIN: solicitando NAMES para %s", channel);
                         }
 
                         /* Añadir usuario a la ventana */
@@ -403,9 +409,19 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                                 /* Parsear lista de nicks */
                                 char *nick_token = strtok(names_copy, " ");
                                 int nick_count = 0;
-                                while (nick_token) {
+                                int nick_skipped = 0;
+
+                                while (nick_token && nick_count < MAX_USERS_PER_CHANNEL) {
                                     char mode = ' ';
                                     char *nick_start = nick_token;
+
+                                    /* Validar que el token no esté vacío y tenga longitud razonable */
+                                    size_t token_len = strlen(nick_token);
+                                    if (token_len == 0 || token_len >= MAX_NICK_LEN) {
+                                        nick_skipped++;
+                                        nick_token = strtok(NULL, " ");
+                                        continue;
+                                    }
 
                                     /* Detectar prefijo de modo */
                                     if (*nick_start == '@') {
@@ -425,14 +441,23 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                                         nick_start++;
                                     }
 
-                                    if (strlen(nick_start) > 0) {
+                                    /* Validar que el nick después del modo no esté vacío */
+                                    if (strlen(nick_start) > 0 && strlen(nick_start) < MAX_NICK_LEN) {
                                         window_add_user_with_mode(w, nick_start, mode);
                                         nick_count++;
+                                    } else {
+                                        nick_skipped++;
                                     }
 
                                     nick_token = strtok(NULL, " ");
                                 }
-                                debug_log(wm, debug_window_id, "NAMES: añadidos %d usuarios a %s", nick_count, channel);
+
+                                debug_log(wm, debug_window_id, "NAMES: añadidos %d usuarios a %s (saltados: %d, total ventana: %d)",
+                                         nick_count, channel, nick_skipped, w->user_count);
+
+                                if (nick_count >= MAX_USERS_PER_CHANNEL) {
+                                    debug_log(wm, debug_window_id, "NAMES: ADVERTENCIA - límite de usuarios alcanzado en %s", channel);
+                                }
                                 break;
                             }
                         }

@@ -22,6 +22,7 @@
 #define MAX_INPUT_LEN 512
 #define COMMAND_HISTORY_SIZE 15
 #define DEFAULT_IRC_PORT 6667
+#define MAX_USERS_PER_CHANNEL 500
 
 /* Tipos de ventanas */
 typedef enum {

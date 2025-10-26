@@ -237,6 +237,16 @@ void window_add_user(Window *win, const char *nick) {
 void window_add_user_with_mode(Window *win, const char *nick, char mode) {
     if (!win || !nick || win->type != WIN_CHANNEL) return;
 
+    /* Verificar límite de usuarios para prevenir overflow */
+    if (win->user_count >= MAX_USERS_PER_CHANNEL) {
+        return; /* Silenciosamente ignorar usuarios adicionales */
+    }
+
+    /* Validar longitud del nick */
+    if (strlen(nick) == 0 || strlen(nick) >= MAX_NICK_LEN) {
+        return;
+    }
+
     /* Verificar que el usuario no exista ya */
     UserNode *current = win->users;
     UserNode *prev = NULL;
