@@ -30,21 +30,35 @@ static int wrap_text(const char *text, int max_width, char **lines, int max_line
                 int ansi_start = pos;
                 /* Saltar secuencia ANSI completa */
                 pos += 2;
-                while (pos < text_len && text[pos] != 'm') {
+                /* Limitar búsqueda de 'm' a máximo 20 caracteres para evitar bucles infinitos */
+                int search_limit = 20;
+                while (pos < text_len && text[pos] != 'm' && search_limit > 0) {
                     pos++;
+                    search_limit--;
                 }
-                if (pos < text_len) pos++; /* Saltar 'm' */
+
+                /* Si encontramos la 'm', avanzar; si no, resetear a posición segura */
+                if (pos < text_len && text[pos] == 'm') {
+                    pos++; /* Saltar 'm' */
+                } else {
+                    /* Secuencia ANSI malformada, volver atrás y tratar como texto normal */
+                    pos = ansi_start + 1;
+                    line_end = pos;
+                    continue;
+                }
 
                 int ansi_len = pos - ansi_start;
 
                 /* Verificar si es un código de reset */
-                if (ansi_len >= 4 && text[ansi_start + 2] == '0' && text[ansi_start + 3] == 'm') {
+                if (ansi_len >= 4 && ansi_start + 3 < text_len &&
+                    text[ansi_start + 2] == '0' && text[ansi_start + 3] == 'm') {
                     /* Reset: limpiar códigos activos */
                     active_codes[0] = '\0';
                     active_codes_len = 0;
                 } else {
                     /* Guardar código ANSI en active_codes (evitar overflow) */
-                    if (active_codes_len + ansi_len < (int)sizeof(active_codes) - 1) {
+                    if (ansi_len > 0 && ansi_len < 50 &&
+                        active_codes_len + ansi_len < (int)sizeof(active_codes) - 1) {
                         memcpy(active_codes + active_codes_len, text + ansi_start, ansi_len);
                         active_codes_len += ansi_len;
                         active_codes[active_codes_len] = '\0';
@@ -64,6 +78,12 @@ static int wrap_text(const char *text, int max_width, char **lines, int max_line
             else if ((c & 0xF0) == 0xE0) char_bytes = 3;
             else if ((c & 0xF8) == 0xF0) char_bytes = 4;
 
+            /* Verificar que no nos salgamos del buffer */
+            if (pos + char_bytes > text_len) {
+                char_bytes = text_len - pos;
+                if (char_bytes <= 0) break;
+            }
+
             /* Verificar si el carácter cabe */
             if (visible_chars + 1 > max_width) break;
 
@@ -74,31 +94,40 @@ static int wrap_text(const char *text, int max_width, char **lines, int max_line
 
         /* Crear línea */
         int line_bytes = line_end - line_start;
-        if (line_bytes > 0) {
+        if (line_bytes > 0 && line_bytes < MAX_MSG_LEN) {  /* Validar tamaño razonable */
             /* Calcular tamaño total: códigos activos previos + contenido + reset ANSI */
-            int prefix_len = (line_count > 0) ? active_codes_len : 0;
+            int prefix_len = (line_count > 0 && active_codes_len > 0) ? active_codes_len : 0;
             int total_size = prefix_len + line_bytes + 5; /* +5 para \033[0m + \0 */
 
-            lines[line_count] = malloc(total_size);
-            if (lines[line_count]) {
-                char *ptr = lines[line_count];
+            /* Validar que el tamaño total sea razonable */
+            if (total_size > 0 && total_size < MAX_MSG_LEN * 2) {
+                lines[line_count] = malloc(total_size);
+                if (lines[line_count]) {
+                    char *ptr = lines[line_count];
+                    char *end_ptr = lines[line_count] + total_size;
 
-                /* Si no es la primera línea, añadir códigos activos al inicio */
-                if (line_count > 0 && active_codes_len > 0) {
-                    memcpy(ptr, active_codes, active_codes_len);
-                    ptr += active_codes_len;
+                    /* Si no es la primera línea, añadir códigos activos al inicio */
+                    if (line_count > 0 && active_codes_len > 0 && ptr + active_codes_len < end_ptr) {
+                        memcpy(ptr, active_codes, active_codes_len);
+                        ptr += active_codes_len;
+                    }
+
+                    /* Copiar contenido de la línea con verificación de límites */
+                    if (line_start >= 0 && line_end <= text_len &&
+                        line_bytes > 0 && ptr + line_bytes < end_ptr) {
+                        memcpy(ptr, text + line_start, line_bytes);
+                        ptr += line_bytes;
+                    }
+
+                    /* Añadir reset ANSI al final */
+                    if (ptr + 5 <= end_ptr) {
+                        memcpy(ptr, "\033[0m", 4);
+                        ptr += 4;
+                        *ptr = '\0';
+                    }
+
+                    line_count++;
                 }
-
-                /* Copiar contenido de la línea */
-                memcpy(ptr, text + line_start, line_bytes);
-                ptr += line_bytes;
-
-                /* Añadir reset ANSI al final */
-                memcpy(ptr, "\033[0m", 4);
-                ptr += 4;
-                *ptr = '\0';
-
-                line_count++;
             }
         }
 
