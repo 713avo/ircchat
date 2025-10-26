@@ -93,6 +93,13 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                         snprintf(join_cmd, sizeof(join_cmd), "JOIN %s", channel);
                         irc_send(irc, join_cmd);
 
+                        /* Solicitar lista de usuarios del canal */
+                        char names_cmd[MAX_MSG_LEN];
+                        snprintf(names_cmd, sizeof(names_cmd), "NAMES %s", channel);
+                        irc_send(irc, names_cmd);
+
+                        debug_log(wm, debug_window_id, "AUTOJOIN: solicitando NAMES para %s", channel);
+
                         char msg[MAX_MSG_LEN];
                         snprintf(msg, sizeof(msg), ANSI_CYAN "* Auto-join: %s (ventana %d)" ANSI_RESET,
                                  channel, win_id);
@@ -225,6 +232,9 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                     if (sscanf(join_cmd, "JOIN :%s", channel) == 1 ||
                         sscanf(join_cmd, "JOIN %s", channel) == 1) {
 
+                        debug_log(wm, debug_window_id, "JOIN recibido: sender='%s', canal='%s', mi_nick='%s'",
+                                 sender, channel, irc->nick);
+
                         /* Buscar ventana del canal */
                         Window *found_win = NULL;
                         int found_win_id = -1;
@@ -237,6 +247,9 @@ void process_irc_messages(IRCConnection *irc, WindowManager *wm, Config *config,
                                 break;
                             }
                         }
+
+                        debug_log(wm, debug_window_id, "JOIN: found_win=%p, es_mio=%d",
+                                 (void*)found_win, strcasecmp(sender, irc->nick) == 0);
 
                         /* Si no existe ventana y el JOIN es nuestro, crearla */
                         if (!found_win && strcasecmp(sender, irc->nick) == 0) {
